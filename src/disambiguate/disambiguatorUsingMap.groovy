@@ -3,8 +3,11 @@ package disambiguate
 import groovy.json.JsonSlurper
 import org.apache.commons.io.FileUtils
 
+import java.math.RoundingMode
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 
 @GrabResolver(name="neo4j", root="http://m2.neo4j.org/")
 @GrabResolver(name="restlet", root="http://maven.restlet.org/")
@@ -12,14 +15,19 @@ import java.nio.charset.StandardCharsets
 
 def slurper = new JsonSlurper()
 
-def jsonFilePath = this.getClass().getResource( '/resources/StatsJson.txt' ).getPath()
+def jsonFilePath = this.getClass().getResource( '/resources/prettyStatisticsJson.txt' ).getPath()
 def taggedFilePath = this.getClass().getResource( '/resources/lastTagged.txt' ).getPath()
 //def jsonFile = this.getClass().getResource( '/resources/json_test.txt' ).getFile()
 
 def jsonFile = new File(jsonFilePath)
 def taggedFile = new File(taggedFilePath)
 
-randomDisambiguation = true
+randomDisambiguation = false
+notAbleToDisambiguateCount = 0
+oneTagWordCount = 0
+disambiguatedWordCount = 0
+tagFromStatisticDontExistsOnTaggedFileCount = 0
+
 random = new Random();
 
 count = 0
@@ -28,7 +36,7 @@ time = start = System.currentTimeMillis()
 def trace(output) {
     if (output || ++ count % 1000 == 0) {
         now = System.currentTimeMillis()
-        println "$count rows ${(now-time)} ms"
+        println "$count words ${(now-time)} ms"
         time = now
     }
 }
@@ -39,14 +47,11 @@ println "Reading  files from " + jsonFilePath
         println "All statistics populated on jsonStats"
     } catch (Exception ex) {
         ex.printStackTrace()
-    } finally {
-        trace(true)
     }
 
     def first = false
-    println "Reading  tagged files from "
+    println "Reading  tagged files from " + taggedFilePath
     def sentencePattern = ~/.?S#[0-9]+/
-    def wordCountPattern = ~/\\w+/
     def row  = ''
     def disambiguatedData = new StringBuilder()
 
@@ -83,18 +88,26 @@ println "Reading  files from " + jsonFilePath
             disambiguatedData.append(row).append('\n')
         })
         println 'All file was disambiguated'
-        println 'Creating file'
+        println 'Creating new disambiguated file'
+
+        String dateTime = new SimpleDateFormat("_yyyy-MM-dd_hh-mm-ss'.txt'").format(new Date());
 
         if(randomDisambiguation){
-            saveStringToFile(disambiguatedData.toString(), 'C:\\temp\\myRandomDisambiguation.txt', StandardCharsets.UTF_8)
-        } else {
-            saveStringToFile(disambiguatedData.toString(), 'C:\\temp\\myBiasedDisambiguation.txt', StandardCharsets.UTF_8)
-        }
 
-        println 'File created on:  C:\\temp\\mydisambiguation.txt'
+            saveStringToFile(disambiguatedData.toString(), 'C:\\temp\\myRandomDisambiguation' + dateTime, StandardCharsets.UTF_8)
+            println "Created new random disambiguated file"
+        } else {
+            saveStringToFile(disambiguatedData.toString(), 'C:\\temp\\myBiasedDisambiguation' + dateTime, StandardCharsets.UTF_8)
+            println "Created new biased disambiguated file"
+        }
     } catch (Exception ex) {
         ex.printStackTrace()
     } finally {
+
+        println 'Words that not found on stats - and not disambiguated by statistic (used random instead): ' + notAbleToDisambiguateCount
+        println 'Words with only one tag  - and not needed to disambiguate: ' + oneTagWordCount
+        println 'Words that have multiple tags  found on stats - WAS disambiguated: ' + disambiguatedWordCount
+        println 'Words that have multiple tags  found on stats - BUT NO TAG FOUND ON TAGGED FILE (Stats have a tag that don\'t was tagged by wagger): ' + tagFromStatisticDontExistsOnTaggedFileCount
         trace(true)
     }
 
@@ -121,16 +134,69 @@ def getWordList(stringOriginal){
 }
 
 def getRandomDisambiguatedRow(wordList){
-
     // Get the word
     def word = wordList.get(0)
-
     def tags = wordList - word
-
     return  word + ' ' + randomDisambiguate(tags)
 }
 
 def String randomDisambiguate(tags){
     def i = random.nextInt(tags.size())
     return tags[i]
+}
+
+def getBiasedDisambiguatedRow(wordList){
+    // Get the word
+    def word = wordList.get(0)
+    def tags = wordList - word
+    return  word + ' ' + biasedDisambiguation(tags, jsonStats.getAt(word))
+}
+
+def String biasedDisambiguation(tags, statistics){
+    if(statistics != null){
+        // println "Word exists on stats: " + statistics
+        if(statistics.tagStatistic.size() > 1){
+            // Multiple tags found, disambiguate
+            return getTagByStatistic(tags, statistics.tagStatistic)
+        } else {
+           // Only one tag found, use it
+            oneTagWordCount++
+           return statistics.tagStatistic[0].tagName
+        }
+    } else {
+        //println 'Word not found on statistics - Not able to disambiguate --> Used random to pick one tag'
+        notAbleToDisambiguateCount++
+        return randomDisambiguate(tags)
+    }
+}
+
+def getTagByStatistic (tags, statistics){
+
+    def totalPercentage = statistics.sum{it.percentageUsed}
+    def randomDouble = random.nextDouble()
+    def percentageSum = 0
+    def tagMap = getTagMap(tags)
+
+    for (i = 0; i < statistics.size(); i++) {
+        percentageSum += statistics[i].percentageUsed;
+        percentageSum =  BigDecimal.valueOf(percentageSum).setScale(2, RoundingMode.CEILING)
+
+        if (randomDouble <= percentageSum) {
+            // Matched tag, so we need to verify if it's exists on tagMap
+            if(tagMap.getAt(statistics[i].tagName) != null){
+                disambiguatedWordCount++
+                return statistics[i].tagName
+            }else{
+                tagFromStatisticDontExistsOnTaggedFileCount++
+            }
+        }
+    }
+}
+
+def getTagMap(tagList){
+    def tagMap = [:]
+    tagList.each{
+        tagMap.put(it,it)
+    }
+    return tagMap
 }

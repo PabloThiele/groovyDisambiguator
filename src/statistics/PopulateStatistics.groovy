@@ -17,6 +17,7 @@ import utils.model.WordStatistic
 import java.math.RoundingMode
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
 
 @GrabResolver(name="neo4j", root="http://m2.neo4j.org/")
 @GrabResolver(name="restlet", root="http://maven.restlet.org/")
@@ -178,7 +179,8 @@ def WordStatistic populateStatistic(word, queryResult){
     }
 
     for (TagStatistic tagStats : wordStatistic.tagStatistic) {
-       def percentage = ((tagStats.hitNumber * 100) / wordStatistic.totalHits )
+        // Percentage range is: 0~1
+       def percentage = ((tagStats.hitNumber) / wordStatistic.totalHits )
        tagStats.percentageUsed = BigDecimal.valueOf(percentage).setScale(2, RoundingMode.CEILING)
        // Round the result to use 2 decimal
        //tagStats.percentageUsed = tagStats.percentageUsed
@@ -203,11 +205,12 @@ def createStatsJson(obj){
 
     Gson gson = new GsonBuilder()
             .disableHtmlEscaping()
+            .setPrettyPrinting()
             .create();
 
     String json = gson.toJson(obj);
-
-    String location = "C:\\temp\\StatsJson.txt"
+    String dateTime = new SimpleDateFormat("_yyyy-MM-dd_hh-mm-ss'.txt'").format(new Date());
+    String location = 'C:\\temp\\StatisticsJson' + dateTime
 
     saveStringToFile(json, location, StandardCharsets.UTF_8);
 
