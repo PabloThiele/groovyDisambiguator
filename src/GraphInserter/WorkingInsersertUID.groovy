@@ -15,7 +15,8 @@ import utils.enums.Types
 
 def slurper = new JsonSlurper()
 //def jsonFile = new File('./resources/json_test.txt');
-def jsonFilePath = this.getClass().getResource( '/resources/json_file_today.txt' ).getPath()
+def jsonFilePath = this.getClass().getResource( '/resources/json_file_merged_tags.txt' ).getPath()
+//def jsonFilePath = this.getClass().getResource( '/resources/json_file_today.txt' ).getPath()
 def jsonFile = new File(jsonFilePath)
 //def jsonFile = new File('./resources/json_file_today.txt');
 
@@ -65,7 +66,7 @@ def trace(output) {
 }
 
 //tag::main[]
-store="C:\\temp\\MacMorphoUIDTest"
+store="C:\\temp\\MacMorphoMergedTags"
 
 println "Importing data from ${jsonFile} into ${store}"
 

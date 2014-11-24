@@ -2,6 +2,8 @@ package disambiguate
 
 import groovy.json.JsonSlurper
 import org.apache.commons.io.FileUtils
+import utils.enums.TagList
+import utils.model.TagStatistic
 
 import java.math.RoundingMode
 import java.nio.charset.Charset
@@ -22,6 +24,7 @@ def taggedFilePath = this.getClass().getResource( '/resources/lastTagged.txt' ).
 def jsonFile = new File(jsonFilePath)
 def taggedFile = new File(taggedFilePath)
 
+defaultPercentageValue = 0.1
 randomDisambiguation = false
 notAbleToDisambiguateCount = 0
 oneTagWordCount = 0
@@ -155,6 +158,8 @@ def getBiasedDisambiguatedRow(wordList){
 def String biasedDisambiguation(tags, statistics){
     if(statistics != null){
         // println "Word exists on stats: " + statistics
+        return getTagByStatistic(tags, statistics.tagStatistic)
+        /*
         if(statistics.tagStatistic.size() > 1){
             // Multiple tags found, disambiguate
             return getTagByStatistic(tags, statistics.tagStatistic)
@@ -162,7 +167,7 @@ def String biasedDisambiguation(tags, statistics){
            // Only one tag found, use it
             oneTagWordCount++
            return statistics.tagStatistic[0].tagName
-        }
+        }*/
     } else {
         //println 'Word not found on statistics - Not able to disambiguate --> Used random to pick one tag'
         notAbleToDisambiguateCount++
@@ -172,25 +177,36 @@ def String biasedDisambiguation(tags, statistics){
 
 def getTagByStatistic (tags, statistics){
 
-    def totalPercentage = statistics.sum{it.percentageUsed}
+    def adjustedStatistics = getAdjustedStatistics(statistics)
+    //def totalPercentage = adjustedStatistics.sum{it.percentageUsed}
     def randomDouble = random.nextDouble()
     def percentageSum = 0
     def tagMap = getTagMap(tags)
+    def tagResult = null
 
-    for (i = 0; i < statistics.size(); i++) {
-        percentageSum += statistics[i].percentageUsed;
+    for (i = 0; i < adjustedStatistics.size(); i++) {
+        percentageSum += adjustedStatistics[i].percentageUsed;
         percentageSum =  BigDecimal.valueOf(percentageSum).setScale(2, RoundingMode.CEILING)
 
         if (randomDouble <= percentageSum) {
             // Matched tag, so we need to verify if it's exists on tagMap
-            if(tagMap.getAt(statistics[i].tagName) != null){
+            if(tagMap.getAt(adjustedStatistics[i].tagName) != null){
                 disambiguatedWordCount++
-                return statistics[i].tagName
-            }else{
-                tagFromStatisticDontExistsOnTaggedFileCount++
-            }
+                //return adjustedStatistics[i].tagName
+                tagResult = adjustedStatistics[i].tagName
+                break
+            }//else{
+            //}
         }
     }
+
+    if(tagResult == null){
+        tagResult = randomDisambiguate(tags)
+        tagFromStatisticDontExistsOnTaggedFileCount++
+
+    }
+
+    return tagResult
 }
 
 def getTagMap(tagList){
@@ -199,4 +215,35 @@ def getTagMap(tagList){
         tagMap.put(it,it)
     }
     return tagMap
+}
+
+def getAdjustedStatistics(statistics){
+    if(statistics.size > 1){
+        return statistics
+    } else {
+        if(statistics[0].tagName == 'N'){
+            tagsToUse = ['V', 'ADJ']
+        } else if(statistics[0].tagName == 'V'){
+            tagsToUse = ['N', 'ADJ']
+        } else if(statistics[0].tagName == 'ADJ'){
+            tagsToUse = ['V', 'N']
+        } else {
+            tagsToUse = ['V', 'N', 'ADJ']
+        }
+
+        defaultStats = getDefaultTagStatistics(tagsToUse)
+
+        statistics[0].percentageUsed = statistics[0].percentageUsed - defaultPercentageValue
+        return statistics + defaultStats
+    }
+}
+
+def getDefaultTagStatistics(tagsToUse){
+
+    List<TagStatistic> defaultTags = new ArrayList<TagStatistic>()
+
+    for(int i=0; i < tagsToUse.size(); i++){
+        defaultTags.add(new TagStatistic(TagList.valueOf(tagsToUse[i]), 1L, 0, defaultPercentageValue / tagsToUse.size()))
+    }
+    return defaultTags
 }
