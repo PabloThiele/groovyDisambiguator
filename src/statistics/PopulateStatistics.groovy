@@ -27,7 +27,8 @@ import java.text.SimpleDateFormat
 
 
 def slurper = new JsonSlurper()
-def jsonFilePath = this.getClass().getResource( '/resources/json_file_today.txt' ).getPath()
+def jsonFilePath = this.getClass().getResource( '/resources/json_file_merged_tags.txt' ).getPath()
+//def jsonFilePath = this.getClass().getResource( '/resources/json_file_today.txt' ).getPath()
 //def jsonFilePath = this.getClass().getResource( '/resources/json_test.txt' ).getFile()
 
 def jsonFile = new File(jsonFilePath)
@@ -67,8 +68,8 @@ def trace(output) {
     }
 }
 
-store="C:\\temp\\MacMorphoUIDTest"
-//store="C:\\temp\\testDBTestCount"
+store='C:\\temp\\MacMorphoMergedTags'
+//store='C:\\temp\\testDBTestCount'
 
 db = new GraphDatabaseFactory().newEmbeddedDatabase( store );
 
@@ -122,7 +123,7 @@ ExecutionResult result;
         ex.printStackTrace()
     } finally {
         trace(true)
-        println "Total $count Lines ${palavras.size()} Words and ${tags.size()} Tags took ${(now - start) / 1000} seconds."
+        println "Total $count Lines ${wordStatisticMap.size()} Words and ${tagMap.size()} Tags took ${(now - start) / 1000} seconds."
         println "Total de PALAVRAS UNICAS: " + wordStatisticMap.size()
 
     }
@@ -184,7 +185,6 @@ def WordStatistic populateStatistic(word, queryResult){
        tagStats.percentageUsed = BigDecimal.valueOf(percentage).setScale(2, RoundingMode.CEILING)
        // Round the result to use 2 decimal
        //tagStats.percentageUsed = tagStats.percentageUsed
-
     }
 
     return wordStatistic

@@ -17,15 +17,16 @@ import java.text.SimpleDateFormat
 
 def slurper = new JsonSlurper()
 
-def jsonFilePath = this.getClass().getResource( '/resources/prettyStatisticsJson.txt' ).getPath()
+def jsonFilePath = this.getClass().getResource( '/resources/StatisticsJson_2014-11-25_09-48-34.txt' ).getPath()
+//def jsonFilePath = this.getClass().getResource( '/resources/prettyStatisticsJson.txt' ).getPath()
 def taggedFilePath = this.getClass().getResource( '/resources/lastTagged.txt' ).getPath()
 //def jsonFile = this.getClass().getResource( '/resources/json_test.txt' ).getFile()
 
 def jsonFile = new File(jsonFilePath)
 def taggedFile = new File(taggedFilePath)
 
-defaultPercentageValue = 0.1
-randomDisambiguation = false
+defaultPercentageValue = 0.05
+randomDisambiguation = true
 notAbleToDisambiguateCount = 0
 oneTagWordCount = 0
 disambiguatedWordCount = 0
