@@ -26,7 +26,8 @@ def jsonFile = new File(jsonFilePath)
 def taggedFile = new File(taggedFilePath)
 
 defaultPercentageValue = 0.05
-randomDisambiguation = true
+randomDisambiguation = false
+baisedDisambiguation = true
 notAbleToDisambiguateCount = 0
 oneTagWordCount = 0
 disambiguatedWordCount = 0
@@ -83,8 +84,11 @@ println "Reading  files from " + jsonFilePath
                 if(wordCount > 2){
                     if(randomDisambiguation){
                         row = getRandomDisambiguatedRow(wordList)
-                    } else {
+                    } else if(baisedDisambiguation){
                         row = getBiasedDisambiguatedRow(wordList)
+                    }else{
+                        row = getNeighborhoodDisambiguatedRow(wordList)
+
                     }
                     disambiguatedData.append('\t')
                 }
@@ -160,15 +164,6 @@ def String biasedDisambiguation(tags, statistics){
     if(statistics != null){
         // println "Word exists on stats: " + statistics
         return getTagByStatistic(tags, statistics.tagStatistic)
-        /*
-        if(statistics.tagStatistic.size() > 1){
-            // Multiple tags found, disambiguate
-            return getTagByStatistic(tags, statistics.tagStatistic)
-        } else {
-           // Only one tag found, use it
-            oneTagWordCount++
-           return statistics.tagStatistic[0].tagName
-        }*/
     } else {
         //println 'Word not found on statistics - Not able to disambiguate --> Used random to pick one tag'
         notAbleToDisambiguateCount++
@@ -179,8 +174,8 @@ def String biasedDisambiguation(tags, statistics){
 def getTagByStatistic (tags, statistics){
 
     def adjustedStatistics = getAdjustedStatistics(statistics)
-    //def totalPercentage = adjustedStatistics.sum{it.percentageUsed}
-    def randomDouble = random.nextDouble()
+    def totalPercentage = adjustedStatistics.sum{it.percentageUsed}
+    def randomDouble = random.nextDouble() * totalPercentage
     def percentageSum = 0
     def tagMap = getTagMap(tags)
     def tagResult = null

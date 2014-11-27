@@ -28,7 +28,7 @@ def config = [
 ]
 
 //tag::main[]
-store="C:\\Users\\pablo_thiele\\Documents\\Neo4j\\fullMMorpho"
+store='C:\\Users\\pablo_thiele\\Documents\\Neo4j\\fullMMorpho'
 //dir=new File(args[1])
 //papers_file=new File(dir,"Paper.csv")
 //author_paper_file=new File(dir,"PaperAuthor.csv")
