@@ -9,8 +9,6 @@ import org.neo4j.graphdb.*
 import org.neo4j.graphdb.factory.GraphDatabaseFactory
 import org.neo4j.graphdb.schema.IndexDefinition
 import org.neo4j.graphdb.schema.Schema
-
-//import org.neo4j.server.WrappingNeoServerBootstrapper
 import utils.enums.Labels
 
 import java.util.concurrent.TimeUnit
@@ -27,29 +25,17 @@ def config = [
         "read_only":"false"
 ]
 
-//tag::main[]
 store='C:\\Users\\pablo_thiele\\Documents\\Neo4j\\fullMMorpho'
-//dir=new File(args[1])
-//papers_file=new File(dir,"Paper.csv")
-//author_paper_file=new File(dir,"PaperAuthor.csv")
 
 println "Importing data from ${store} into ${store}"
-/*
-graphDb = new GraphDatabaseFactory().newEmbeddedDatabaseBuilder(
-        store )
-        //.setConfig( GraphDatabaseSettings.read_only, "true" )
-        .newGraphDatabase();
-*/
 
 // INDEXES FOR LABELS
-
 GraphDatabaseService graphDb = new GraphDatabaseFactory().newEmbeddedDatabase( store );
 IndexDefinition indexDefinitionPalavra;
 IndexDefinition indexDefinitionTags;
 
 try {
         println "Creating Indexes - start"
-
         Transaction tx = graphDb.beginTx()
         Schema schema = graphDb.schema();
         indexDefinitionPalavra = schema.indexFor(Labels.Palavra).on("value").create()
