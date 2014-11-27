@@ -49,7 +49,7 @@ println "TagMap created !!"
 
 defaultPercentageValue = 0.1
 randomDisambiguation = false
-baisedDisambiguation = false
+biasedDisambiguation = false
 notAbleToDisambiguateCount = 0
 oneTagWordCount = 0
 disambiguatedWordCount = 0
@@ -82,7 +82,7 @@ println "Reading  files from " + jsonFilePath
     def row  = ''
     def triadeCounter = 0
     def newSentence = false
-    def disambiguatedData = new StringBuilder()
+    disambiguatedData = new StringBuilder()
 
     try {
 
@@ -91,6 +91,7 @@ println "Reading  files from " + jsonFilePath
         for (String line = br.readLine(); line != null; line = br.readLine()) {
 
             if(sentencePattern.matcher(line).matches()) {
+                disambiguatedData.append(line).append('\n')
                 if(lines != null){
                     def prefixEndPhrase = lines[0]
                     def actualEndPhrase = lines[1]
@@ -129,26 +130,6 @@ println "Reading  files from " + jsonFilePath
         br.close();
         System.exit(1)
 
-            row = line
-
-            // Ignore sentence token lines
-            if(sentencePattern.matcher(row).matches()){
-            } else {
-            // Is needed to disambiguate? -- If wordCount > 2 , Yes
-                wordList = getWordList(row)
-                wordCount = getWordList(row).size()
-
-                if(wordCount > 2){
-                    if(randomDisambiguation){
-                        row = getRandomDisambiguatedRow(wordList)
-                    } else if(baisedDisambiguation){
-                        row = getBiasedDisambiguatedRow(wordList)
-                    }
-                    disambiguatedData.append('\t')
-                }
-            }
-            disambiguatedData.append(row).append('\n')
-
         println 'All file was disambiguated'
         println 'Creating new disambiguated file'
 
@@ -158,7 +139,7 @@ println "Reading  files from " + jsonFilePath
 
             saveStringToFile(disambiguatedData.toString(), 'C:\\temp\\myRandomDisambiguation' + dateTime, StandardCharsets.UTF_8)
             println "Created new random disambiguated file"
-        } else if(baisedDisambiguation){
+        } else if(biasedDisambiguation){
             saveStringToFile(disambiguatedData.toString(), 'C:\\temp\\myBiasedDisambiguation' + dateTime, StandardCharsets.UTF_8)
             println "Created new biased disambiguated file"
         } else {
@@ -318,6 +299,47 @@ def populateTagMap() {
     }
 }
 
-def getNeighborhoodDisambiguatedRow(wordList){
-    println wordList
+def getNeighborhoodDisambiguatedRow(wordsFromLine){
+
+    def wordToCheck = wordsFromLine[1]
+    // Is needed to disambiguate? -- If wordCount > 2 , Yes
+    def wordList = getWordList(wordToCheck)
+    def wordCount = getWordList(wordToCheck).size()
+
+    if(wordCount > 2){
+        def row = getInformationFromGraph(wordList)
+
+        disambiguatedData.append('\t')
+        disambiguatedData.append(row).append('\n')
+    } else {
+        disambiguatedData.append('\t').append(wordList[0]).append(' ').append(wordList[1]).append('\n')
+    }
+}
+
+
+def getInformationFromGraph(wordList){
+    ExecutionResult result;
+    Transaction tx  = db.beginTx()
+    result = engine.execute(getInformationQuery(wordList[0]))
+    for (Map<String, Object> row : result) {
+       println row
+    }
+    tx.success()
+}
+
+def getInformationQuery(word){
+
+    String cleanWord = word
+    cleanWord = cleanWord.replaceAll('"',"")
+    cleanWord = cleanWord.replace("\\", "\\\\");
+    StringBuilder builder = new StringBuilder()
+    builder.append("MATCH (p:Palavra)-[:HAS_A]->(g:TagGroup)")
+    builder.append(" WHERE p.word =").append("\"").append(cleanWord).append("\"")
+    builder.append(" return distinct g.group[0] as prefix,")
+    builder.append(" g.group[1] as actual,")
+    builder.append(" g.group[2] as sufix,")
+    builder.append(" count(g.group) as counter")
+    builder.append(" order by counter desc")
+
+    return builder.toString()
 }
