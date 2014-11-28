@@ -17,8 +17,9 @@ import java.text.SimpleDateFormat
 
 def slurper = new JsonSlurper()
 
-def disambiguatedFilePath = this.getClass().getResource( '/resources/myRandomDisambiguation_2014-11-25_04-47-13.txt' ).getPath()
-//def disambiguatedFilePath = this.getClass().getResource( '/resources/myBiasedDisambiguation_2014-11-25_11-01-14.txt' ).getPath()
+//def disambiguatedFilePath = this.getClass().getResource( '/resources/myRandomDisambiguation_2014-11-25_04-47-13.txt' ).getPath()
+def disambiguatedFilePath = this.getClass().getResource( '/resources/myBiasedDisambiguation_2014-11-25_11-01-14.txt' ).getPath()
+//def disambiguatedFilePath = this.getClass().getResource( '/resources/myNeighborhoodDisambiguation_2014-11-28_12-08-22.txt' ).getPath()
 def originalFilePath = this.getClass().getResource( '/resources/macmorpho-test.txt' ).getPath()
 //def jsonFile = this.getClass().getResource( '/resources/json_test.txt' ).getFile()
 

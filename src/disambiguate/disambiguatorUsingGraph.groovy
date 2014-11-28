@@ -54,6 +54,7 @@ notAbleToDisambiguateCount = 0
 oneTagWordCount = 0
 disambiguatedWordCount = 0
 tagFromStatisticDontExistsOnTaggedFileCount = 0
+neighborhoodDisambiguatedWordCount = 0
 
 random = new Random();
 
@@ -78,18 +79,17 @@ println "Reading  files from " + jsonFilePath
 
     def first = false
     println "Reading  tagged files from " + taggedFilePath
-    def sentencePattern = ~/.?S#[0-9]+/
+    sentencePattern = ~/.?S#[0-9]+/
     def row  = ''
     def triadeCounter = 0
     def newSentence = false
     disambiguatedData = new StringBuilder()
 
     try {
-
+        Transaction tx  = db.beginTx()
         def lines = null
 
         for (String line = br.readLine(); line != null; line = br.readLine()) {
-
             if(sentencePattern.matcher(line).matches()) {
                 disambiguatedData.append(line).append('\n')
                 if(lines != null){
@@ -125,10 +125,15 @@ println "Reading  files from " + jsonFilePath
                 lines.add(actual)
                 triadeCounter = 2
             }
+            count++
+            trace()
         }
 
         br.close();
-        System.exit(1)
+        tx.success()
+        println 'map size : ' + resultCache.size()
+        trace(true)
+
 
         println 'All file was disambiguated'
         println 'Creating new disambiguated file'
@@ -155,7 +160,8 @@ println "Reading  files from " + jsonFilePath
         println 'Words with only one tag  - and not needed to disambiguate: ' + oneTagWordCount
         println 'Words that have multiple tags  found on stats - WAS disambiguated: ' + disambiguatedWordCount
         println 'Words that have multiple tags  found on stats - BUT NO TAG FOUND ON TAGGED FILE (Stats have a tag that don\'t was tagged by wagger): ' + tagFromStatisticDontExistsOnTaggedFileCount
-        trace(true)
+        println 'Words that have multiple tags  found on stats - Neighborhood disambiguated : ' + neighborhoodDisambiguatedWordCount
+        println 'Total time : ' + System.currentTimeMillis() - start
     }
 
 def saveStringToFile(String data, String location, Charset charset){
@@ -178,6 +184,15 @@ def getWordList(stringOriginal){
             .join('').tokenize(' ')
 
     return words
+}
+
+def getTagList(stringOriginal){
+    if(sentencePattern.matcher(stringOriginal).matches()){
+       return [stringOriginal]
+    }
+
+    def words = getWordList(stringOriginal)
+    return  words - words[0]
 }
 
 def getRandomDisambiguatedRow(wordList){
@@ -306,25 +321,61 @@ def getNeighborhoodDisambiguatedRow(wordsFromLine){
     def wordList = getWordList(wordToCheck)
     def wordCount = getWordList(wordToCheck).size()
 
-    if(wordCount > 2){
-        def row = getInformationFromGraph(wordList)
+    def prefixList = getTagList(wordsFromLine[0])
+    def actualList = getTagList(wordsFromLine[1])
+    def suffixList = getTagList(wordsFromLine[2])
 
+    if(wordCount > 2){
+        def resultList  = getInformationFromGraph(wordList)
+        def row = null
+        for(int i = 0; i < resultList.size(); i++ ) {
+            def it = resultList[i]
+            if(prefixList.contains(tagMap[(Long)it.prefix]) && actualList.contains(tagMap[(Long)it.actual]) && suffixList.contains(tagMap[(Long)it.suffix])){
+                //println 'fullMatch'
+                row = wordList[0] + ' ' + tagMap[(Long)it.actual]
+                break
+            }else  if(prefixList.contains(tagMap[(Long)it.prefix]) && actualList.contains(tagMap[(Long)it.actual])){
+                //println 'Only Prefix'
+                row = wordList[0] + ' ' + tagMap[(Long)it.actual]
+            } else  if(actualList.contains(tagMap[(Long)it.actual]) && suffixList.contains(tagMap[(Long)it.suffix])){
+                //println 'Only Suffix'
+                row = wordList[0] + ' ' + tagMap[(Long)it.actual]
+            }
+        }
+        if(row == null){
+            //println 'Needed biased rules'
+            row = getBiasedDisambiguatedRow(wordList)
+        }else{
+            neighborhoodDisambiguatedWordCount++
+        }
         disambiguatedData.append('\t')
         disambiguatedData.append(row).append('\n')
     } else {
         disambiguatedData.append('\t').append(wordList[0]).append(' ').append(wordList[1]).append('\n')
+        oneTagWordCount++
     }
 }
 
 
 def getInformationFromGraph(wordList){
-    ExecutionResult result;
-    Transaction tx  = db.beginTx()
-    result = engine.execute(getInformationQuery(wordList[0]))
-    for (Map<String, Object> row : result) {
-       println row
+    wordKey = wordList[0]
+
+    if(resultCache[wordKey] == null){
+        ExecutionResult result;
+
+        result = engine.execute(getInformationQuery(wordKey))
+        // resultCache[wordList[0]]
+        def resultList = []
+        for (Map<String, Object> row : result) {
+            resultList.add(row)
+        }
+
+        resultCache.put(wordKey, resultList)
+
     }
-    tx.success()
+
+    return resultCache[wordKey]
+
 }
 
 def getInformationQuery(word){
@@ -337,7 +388,7 @@ def getInformationQuery(word){
     builder.append(" WHERE p.word =").append("\"").append(cleanWord).append("\"")
     builder.append(" return distinct g.group[0] as prefix,")
     builder.append(" g.group[1] as actual,")
-    builder.append(" g.group[2] as sufix,")
+    builder.append(" g.group[2] as suffix,")
     builder.append(" count(g.group) as counter")
     builder.append(" order by counter desc")
 

@@ -38,7 +38,7 @@ def addLinesBasedOnList(wordList){
     def newSentence = false
 
     wordList.each { word ->
-        if(pattern.matcher(word).matches()){
+        if(pattern.matcher(word).matches() && word == wordList.last() ){
             addNewSentence(sentenceCount)
             newSentence = true
         }
